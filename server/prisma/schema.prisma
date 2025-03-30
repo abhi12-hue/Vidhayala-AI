@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String  @id @default(uuid())  
+  userName String  @unique              
+  email    String  @unique               
+  password String                         
+  role     Role    @default(student)      
+  enrolledCourses Course[] @relation("EnrolledCourses")
+  createdCourses  Course[] @relation("CreatedCourses")
+  photoUrl String  @default("")          
+  payments Payment[] 
+  createdAt DateTime @default(now())     
+  updatedAt DateTime @updatedAt          
+}
+
+model Course {
+  id               Int        @id @default(autoincrement())
+  coursetitle      String
+  coursesubtitle   String?
+  coursedescription String?
+  category        String
+  courseLevel     Level @default(Beginner)
+  coursePrice     Int?
+  courseThumbnail String?
+   payments Payment[] 
+  enrollStudent   User[] @relation("EnrolledCourses")
+  creatorId       String
+  creator         User @relation("CreatedCourses", fields: [creatorId], references: [id])
+
+  lectures        Lectures[]
+  isPublished     Boolean @default(false)
+
+  createdAt       DateTime @default(now())     
+  updatedAt       DateTime @updatedAt  
+}
+
+model Lectures {
+  id        Int      @id @default(autoincrement())
+  title     String
+  videoUrl  String?
+  publicId String?
+  isPreviewFree Boolean @default(false)
+  courseId  Int
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())     
+  updatedAt DateTime @updatedAt  
+}
+
+enum Role {
+  admin
+  student
+}
+
+enum Level {
+  Beginner
+  Intermediate
+  Advanced
+}  
+
+model Payment {
+  id        String  @id @default(uuid())
+  courseId  Int
+  course    Course  @relation(fields: [courseId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  amount    Int
+  status    Status  @default(Pending)
+  paymentId String  
+  createdAt DateTime @default(now())     
+  updatedAt DateTime @updatedAt  
+}
+
+
+enum Status {
+  Pending
+  Completed
+  Failed
+}  
