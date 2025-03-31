@@ -38,7 +38,7 @@ const CourseDetail = () => {
   useEffect(() => {
     const checkPurchaseStatus = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/payment/status/${id}`, {
+        const response = await axios.get(`https://vidhayala-ai-18.onrender.com/${id}`, {
           withCredentials: true, // Assuming user auth is handled via cookies
         });
         if (response.data.isPurchased) {
@@ -60,7 +60,7 @@ const CourseDetail = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/payment/checkout",
+        "https://vidhayala-ai-18.onrender.com/payment/checkout",
         { courseId: id },
         { withCredentials: true }
       );
