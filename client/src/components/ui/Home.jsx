@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import FAQSection from "../Courses.jsx/Fqs";
+import FAQSection from "../Courses/Fqs";
 import { useGetCourseQuery } from "@/features/api/courseApi";
 import { useNavigate } from "react-router-dom";
 

@@ -7,7 +7,7 @@ import { MdOutlinePayment } from "react-icons/md";
 import { load } from "@cashfreepayments/cashfree-js";
 import axios from "axios";
 import Confetti from "react-confetti";
-import Loadering from "@/components/Courses.jsx/Loader";
+import Loadering from "@/components/Courses/Loader";
 
 const CourseDetail = () => {
   const [orderId, setOrderId] = useState("");

@@ -1,10 +1,10 @@
 import { Routes, Route, createBrowserRouter } from "react-router-dom";
 import Home from "./components/ui/Home";
 import Navbar from "./components/ui/Navbar"; // Import your Navbar component
-import MyLearning from "./components/Courses.jsx/MyLearning";
-import AI from "./components/Courses.jsx/AI";
-import About from "./components/Courses.jsx/About ";
-import EditProfile from "./components/Courses.jsx/EditProfile";
+import MyLearning from "./components/Courses/MyLearning";
+import AI from "./components/Courses/AI";
+import About from "./components/Courses/About ";
+import EditProfile from "./components/Courses/EditProfile";
 import { Login } from "./page/login";
 import SideBar from "./components/dashborad/SideBar";
 import CoursesTable from "./components/dashborad/courses/coursesTable";
@@ -14,8 +14,8 @@ import CreateLecture from "./components/dashborad/lectures/CreateLecture";
 import EditLecture from "./components/dashborad/lectures/EditLecture";
 import CourseDetail from "./components/dashborad/courses/CourseDetail";
 import CourseProgress from "./components/dashborad/courses/courseProgress";
-import ExploreCourse from "./components/Courses.jsx/ExploreCourse";
-import AiChat  from "./components/Courses.jsx/AiChat";
+import ExploreCourse from "./components/Courses/ExploreCourse";
+import AiChat  from "./components/Courses/AiChat";
 
 // // 🛡️ Private Route for Admin
 // const PrivateRoute = ({ children }) => {
@@ -29,7 +29,7 @@ import AiChat  from "./components/Courses.jsx/AiChat";
 function App() {
   return (
     <>
-      <Navbar />
+      <Navbar/>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
