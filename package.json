@@ -4,8 +4,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server/server.js",
-  "build": "npm install && npm install --prefix client && npm run build --prefix client",
-  "start": "nodemon server/server.js"
+    "build": "npm install && npm install --prefix client && npm run build --prefix client",
+    "start": "nodemon server/server.js"
   },
   "keywords": [],
   "author": "",
@@ -27,5 +27,8 @@
     "nodemon": "^3.1.9",
     "prisma": "^6.4.1",
     "stripe": "^17.7.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.3"
   }
 }
