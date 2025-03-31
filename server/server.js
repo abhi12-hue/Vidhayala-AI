@@ -12,10 +12,11 @@ const paymentRoutes = require("./routes/paymentRoute");
 const path = require("path");
 app.use(cookieParser());
 app.use(
-    cors({     
-        credentials:true,
+    cors({
+      origin: "https://vidhayala-ai-18.onrender.com", // Replace with your actual frontend URL
+      credentials: true,
     })
-);
+  );
 
 app.use(express.json());
 
