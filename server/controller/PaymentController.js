@@ -60,7 +60,7 @@ exports.createCheckoutSession = async (req, res) => {
       },
       order_meta: {
         return_url: `https://vidhayala-ai-18.onrender.com/course-progress/${courseId}?order_id=${orderId}`,
-        notify_url: "https://vidhayala-ai-18.onrender.com", // Replace with your public URL
+        notify_url: "https://vidhayala-ai-18.onrender.com/webhook/cashfree"
       },
     };
 
