@@ -20,9 +20,6 @@ app.use(
 app.use(express.json());
 
  // Correct path resolution
-app.get("/", async (req, res) => {
-    res.json({ message: "Server is running!" });
-});
 app.use("/api/v1/media" ,videoupload )
 app.use('/api/v1/user', authRoute); 
 app.use('/api/v1/courses', courseRoute);
