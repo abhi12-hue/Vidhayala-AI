@@ -127,7 +127,7 @@ useEffect(()=>{
                     <span>AI</span>
                   </Link>
                   <Link 
-                    to="/explore" 
+                    to="/explore-course" 
                     className="text-white hover:bg-purple-500 p-2 rounded-md flex items-center space-x-2 transition duration-300"
                   >
                     <Book className="w-5 h-5" />
