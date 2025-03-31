@@ -1,11 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
 const { randomUUID } = require("crypto");
+const crypto = require('crypto');
 require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://sandbox.cashfree.com/pg/orders"; // Change for production
+const CASHFREE_API_BASE = "https://api.cashfree.com/pg/orders"; // Production URL
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
@@ -19,6 +20,19 @@ if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET_KEY) {
   console.error("❌ Missing Cashfree API credentials. Check .env file.");
   process.exit(1);
 }
+
+const verifySignature = (req) => {
+  const receivedSignature = req.headers['x-cashfree-signature'];
+  const payload = JSON.stringify(req.body);
+  const secret = process.env.CLIENT_SECRET_KEY;
+
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+
+  return receivedSignature === signature;
+};
 
 exports.createCheckoutSession = async (req, res) => {
   try {
@@ -57,8 +71,8 @@ exports.createCheckoutSession = async (req, res) => {
         customer_phone: req.user?.phone || "8954779374",
       },
       order_meta: {
-        return_url: `https://vidhayala-ai-18.onrender.com/course-progress/${courseId}?order_id=${orderId}`,
-        notify_url: "https://vidhayala-ai-18.onrender.com/webhook/cashfree",
+        return_url: `https://yourdomain.com/course-progress/${courseId}?order_id=${orderId}`,
+        notify_url: "https://yourdomain.com/webhook/cashfree"
       },
     };
 
@@ -88,6 +102,12 @@ exports.cashfreeWebhook = async (req, res) => {
   console.log("Webhook triggered - Raw body:", req.body); // Log raw input
 
   try {
+    // Verify Cashfree's signature for the webhook request
+    if (!verifySignature(req)) {
+      console.error("❌ Signature mismatch for webhook");
+      return res.status(400).send("Invalid signature");
+    }
+
     const event = req.body;
 
     if (!event || event.event !== "PAYMENT_SUCCESS") {
