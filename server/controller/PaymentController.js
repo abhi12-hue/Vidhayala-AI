@@ -71,8 +71,8 @@ exports.createCheckoutSession = async (req, res) => {
         customer_phone: req.user?.phone || "8954779374",
       },
       order_meta: {
-        return_url: `https://yourdomain.com/course-progress/${courseId}?order_id=${orderId}`,
-        notify_url: "https://yourdomain.com/webhook/cashfree"
+        return_url: `https://vidhayala-ai-18.onrender.com/course-progress/${courseId}?order_id=${orderId}`,
+        notify_url: "https://vidhayala-ai-18.onrender.com/webhook/cashfree"
       },
     };
 
