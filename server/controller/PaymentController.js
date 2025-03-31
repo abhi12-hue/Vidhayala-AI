@@ -5,7 +5,10 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://sandbox.cashfree.com/pg/orders"; // Change to production when deploying
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const CASHFREE_API_BASE = IS_PRODUCTION
+  ? "https://api.cashfree.com/pg/orders"
+  : "https://sandbox.cashfree.com/pg/orders"; // Use production URL in deployment
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
@@ -14,7 +17,6 @@ const CASHFREE_HEADERS = {
   "x-api-version": "2023-08-01",
 };
 
-// Ensure environment variables exist
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET_KEY) {
   console.error("❌ Missing Cashfree API credentials. Check .env file.");
   process.exit(1);
@@ -25,9 +27,7 @@ exports.createCheckoutSession = async (req, res) => {
     const userId = req.id;
     const courseId = Number(req.body.courseId);
 
-    if (!courseId) {
-      return res.status(400).json({ message: "Invalid course ID" });
-    }
+    if (!courseId) return res.status(400).json({ message: "Invalid course ID" });
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) return res.status(404).json({ message: "Course not found!" });
@@ -38,7 +38,7 @@ exports.createCheckoutSession = async (req, res) => {
 
     const orderId = randomUUID().replace(/-/g, "").slice(0, 12);
 
-    const newPurchase = await prisma.payment.create({
+    await prisma.payment.create({
       data: {
         id: orderId,
         courseId,
@@ -59,7 +59,7 @@ exports.createCheckoutSession = async (req, res) => {
         customer_phone: req.user?.phone || "8954779374",
       },
       order_meta: {
-        return_url: `https://vidhayala-ai-18.onrender.com/course-progress/${courseId}?order_id=${orderId}`, // Fixed URL syntax
+        return_url: `https://vidhayala-ai-18.onrender.com/course-progress/${courseId}?order_id=${orderId}`,
         notify_url: "https://vidhayala-ai-18.onrender.com/webhook/cashfree",
       },
     };
@@ -87,45 +87,39 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 exports.cashfreeWebhook = async (req, res) => {
-  console.log("Webhook triggered - Raw body:", JSON.stringify(req.body, null, 2)); // Log full payload with formatting
+  console.log("Webhook triggered - Raw body:", JSON.stringify(req.body, null, 2));
 
   try {
     const event = req.body;
 
-    // Validate webhook event
-    if (!event || !event.event || event.event !== "PAYMENT_SUCCESS") {
-      console.error("Invalid or missing event received:", JSON.stringify(event, null, 2));
+    if (!event || event.event !== "PAYMENT_SUCCESS") {
+      console.error("❌ Invalid or missing event received:", event);
       return res.status(400).send("Invalid event");
     }
 
     const { order_id, order_amount } = event.data || {};
-
-    // Validate payload fields
     if (!order_id || !order_amount) {
-      console.error("Missing required fields in webhook payload:", JSON.stringify(event.data, null, 2));
+      console.error("❌ Missing required fields:", event.data);
       return res.status(400).send("Invalid payload: missing order_id or order_amount");
     }
 
     console.log("Processing order_id:", order_id, "with amount:", order_amount);
 
-    // Check if the purchase exists
     const purchase = await prisma.payment.findUnique({
       where: { id: order_id },
-      include: { course: true, user: true }, // Include user and course for updates
+      include: { course: true, user: true },
     });
 
     if (!purchase) {
-      console.warn("Purchase not found for order_id:", order_id);
+      console.warn("⚠️ Purchase not found for order_id:", order_id);
       return res.status(404).json({ message: "Purchase not found" });
     }
 
-    // Validate IDs before transaction
     if (!purchase.userId || !purchase.courseId) {
-      console.error("Missing userId or courseId in purchase record:", JSON.stringify(purchase, null, 2));
+      console.error("❌ Missing userId or courseId in purchase record:", purchase);
       return res.status(400).json({ message: "Invalid purchase record" });
     }
 
-    // Log current state before updates
     console.log("Current purchase state:", {
       paymentId: purchase.id,
       userId: purchase.userId,
@@ -133,66 +127,48 @@ exports.cashfreeWebhook = async (req, res) => {
       currentStatus: purchase.status,
     });
 
-    // Use Prisma transaction to ensure atomic updates
     await prisma.$transaction(async (tx) => {
       try {
-        // Update payment status
-        const updatedPurchase = await tx.payment.update({
+        await tx.payment.update({
           where: { id: order_id },
           data: { status: "Completed", amount: parseInt(order_amount, 10) || purchase.amount },
-          include: { course: true, user: true },
         });
-        console.log("Payment updated to Completed:", JSON.stringify(updatedPurchase, null, 2));
 
-        // Update user to enroll in course
-        const updatedUser = await tx.user.update({
+        await tx.user.update({
           where: { id: purchase.userId },
           data: {
-            enrolledCourses: { connect: { id: purchase.courseId } }, // Connect course to user
+            enrolledCourses: { connect: { id: purchase.courseId } },
           },
-          include: { enrolledCourses: true },
         });
-        console.log("User enrolled in course:", JSON.stringify(updatedUser, null, 2));
 
-        // Update course to reflect student enrollment
-        const updatedCourse = await tx.course.update({
+        await tx.course.update({
           where: { id: purchase.courseId },
           data: {
-            enrollStudent: { connect: { id: purchase.userId } }, // Connect user to course
+            enrollStudent: { connect: { id: purchase.userId } },
           },
-          include: { enrollStudent: true },
         });
-        console.log("Course enrollment updated:", JSON.stringify(updatedCourse, null, 2));
+
+        console.log("✅ Payment successfully processed for order_id:", order_id);
       } catch (txError) {
-        console.error("Transaction failed:", {
-          message: txError.message,
-          stack: txError.stack,
-          details: txError.meta, // Prisma might provide additional metadata
-        });
-        throw txError; // Re-throw to rollback transaction
+        console.error("❌ Transaction failed:", txError);
+        throw txError;
       }
     });
 
-    console.log("✅ Payment successfully processed:", JSON.stringify(event, null, 2));
     res.status(200).send("Webhook received");
   } catch (error) {
-    console.error("❌ Webhook processing error:", {
-      message: error.message,
-      stack: error.stack,
-      payload: JSON.stringify(req.body, null, 2),
-    });
+    console.error("❌ Webhook processing error:", error);
     res.status(500).json({ message: "Internal Server Error", error: error.message });
   } finally {
-    // Ensure Prisma connection is healthy
     await prisma.$disconnect().catch((disconnectError) => {
       console.error("Failed to disconnect Prisma client:", disconnectError.message);
     });
   }
-};;
+};
 
 exports.checkPurchaseStatus = async (req, res) => {
   try {
-    const userId = req.id || "test-user-id"; // Fallback for testing
+    const userId = req.id || "test-user-id";
     const courseId = Number(req.params.courseId);
 
     const purchase = await prisma.payment.findFirst({
@@ -205,7 +181,7 @@ exports.checkPurchaseStatus = async (req, res) => {
 
     res.status(200).json({ isPurchased: !!purchase });
   } catch (error) {
-    console.error("Error checking purchase status:", error);
+    console.error("❌ Error checking purchase status:", error);
     res.status(500).json({ message: "Failed to check purchase status" });
   }
 };
