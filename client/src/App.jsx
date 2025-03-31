@@ -1,6 +1,6 @@
 import { Routes, Route, createBrowserRouter } from "react-router-dom";
 import Home from "./components/ui/Home";
-import Navbar from "./components/ui/Navbar"; // Import your Navbar component
+import Navbar from "@components/ui/Navbar"; // Import your Navbar component
 import MyLearning from "./components/Courses.jsx/MyLearning";
 import AI from "./components/Courses.jsx/AI";
 import About from "./components/Courses.jsx/About ";
