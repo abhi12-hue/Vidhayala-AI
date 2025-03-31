@@ -1,6 +1,5 @@
 import { Routes, Route, createBrowserRouter } from "react-router-dom";
 import Home from "./components/ui/Home";
-import Navbar from "./components/ui/Navbar"; // Import your Navbar component
 import MyLearning from "./components/Courses/MyLearning";
 import AI from "./components/Courses/AI";
 import About from "./components/Courses/About ";
@@ -16,6 +15,7 @@ import CourseDetail from "./components/dashborad/courses/CourseDetail";
 import CourseProgress from "./components/dashborad/courses/courseProgress";
 import ExploreCourse from "./components/Courses/ExploreCourse";
 import AiChat  from "./components/Courses/AiChat";
+import NavBar from "./components/ui/NavBar";
 
 // // 🛡️ Private Route for Admin
 // const PrivateRoute = ({ children }) => {
@@ -29,7 +29,7 @@ import AiChat  from "./components/Courses/AiChat";
 function App() {
   return (
     <>
-      <Navbar/>
+      <NavBar/>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
