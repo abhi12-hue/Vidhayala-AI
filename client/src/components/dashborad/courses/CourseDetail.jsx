@@ -25,7 +25,7 @@ const CourseDetail = () => {
   useEffect(() => {
     const initializeSDK = async () => {
       try {
-        const sdk = await load({ mode: "production" });
+        const sdk = await load({ mode: "sandbox" }); // Changed to sandbox to match backend
         setCashfree(sdk);
         console.log("✅ Cashfree SDK initialized");
       } catch (error) {
@@ -62,41 +62,38 @@ const CourseDetail = () => {
     setError(null);
 
     try {
+      console.log("Initiating payment for courseId:", id);
       const response = await axios.post(
         "https://vidhayala-ai-18.onrender.com/payment/checkout",
         { courseId: id },
         { withCredentials: true }
       );
 
-      if (response.data.success && response.data.sessionId) {
-        setOrderId(response.data.orderId);
-        const checkoutOptions = {
-          paymentSessionId: response.data.sessionId,
-          redirectTarget: "_modal",
-        };
+      console.log("Checkout response:", response.data);
 
-        if (cashfree) {
-          cashfree
-            .checkout(checkoutOptions)
-            .then((result) => {
-              console.log("Payment result:", result);
-              setPaymentSuccess(true);
-              setTimeout(() => navigate(`/course-progress/${id}`), 3000);
-            })
-            .catch((error) => {
-              console.error("Payment error:", error);
-              setError("Payment failed. Please try again.");
-            });
-        } else {
-          console.error("Cashfree SDK not initialized");
-          setError("Payment system not ready. Please try again.");
-        }
-      } else {
+      if (!response.data.success || !response.data.sessionId) {
         throw new Error(response.data.message || "Payment initiation failed");
       }
+
+      setOrderId(response.data.orderId);
+      const checkoutOptions = {
+        paymentSessionId: response.data.sessionId,
+        redirectTarget: "_modal",
+      };
+
+      console.log("Checkout options:", checkoutOptions);
+
+      if (!cashfree) {
+        throw new Error("Cashfree SDK not initialized");
+      }
+
+      await cashfree.checkout(checkoutOptions);
+      console.log("Payment modal triggered successfully");
+      setPaymentSuccess(true);
+      setTimeout(() => navigate(`/course-progress/${id}`), 3000);
     } catch (error) {
-      console.error("Error initiating payment:", error);
-      setError(error.response?.data?.message || "An error occurred while processing the payment.");
+      console.error("Payment error:", error);
+      setError(error.message || "An error occurred while processing the payment.");
     } finally {
       setIsProcessing(false);
     }

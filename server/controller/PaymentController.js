@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://sandbox.cashfree.com/pg/orders"; // Production endpoint
+const CASHFREE_API_BASE = "https://sandbox.cashfree.com/pg/orders"; // Sandbox endpoint
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
@@ -14,7 +14,6 @@ const CASHFREE_HEADERS = {
   "x-api-version": "2023-08-01",
 };
 
-// Ensure environment variables exist at startup
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET_KEY) {
   console.error("❌ Missing Cashfree API credentials. Check .env file.");
   process.exit(1);
@@ -36,7 +35,6 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid course price" });
     }
 
-    // Runtime check for credentials
     if (!CASHFREE_HEADERS["x-client-id"] || !CASHFREE_HEADERS["x-client-secret"]) {
       console.error("❌ Cashfree credentials not loaded at runtime");
       return res.status(500).json({
@@ -76,11 +74,7 @@ exports.createCheckoutSession = async (req, res) => {
     console.log("✅ Sending Order Payload to Cashfree:", {
       url: CASHFREE_API_BASE,
       payload: orderPayload,
-      headers: {
-        ...CASHFREE_HEADERS,
-        "x-client-id": "****", // Masked for logs
-        "x-client-secret": "****", // Masked for logs
-      },
+      headers: { ...CASHFREE_HEADERS, "x-client-id": "****", "x-client-secret": "****" },
     });
 
     const { data } = await axios.post(CASHFREE_API_BASE, orderPayload, { headers: CASHFREE_HEADERS });
@@ -120,10 +114,8 @@ exports.createCheckoutSession = async (req, res) => {
 
 exports.cashfreeWebhook = async (req, res) => {
   console.log("Webhook triggered - Raw body:", JSON.stringify(req.body, null, 2));
-
   try {
     const event = req.body;
-
     if (!event || event.event !== "PAYMENT_SUCCESS") {
       console.log("Invalid event received:", JSON.stringify(event, null, 2));
       return res.status(400).send("Invalid event");
@@ -132,17 +124,10 @@ exports.cashfreeWebhook = async (req, res) => {
     const { order_id, order_amount, payment_id } = event.data;
     console.log("Processing order_id:", order_id, "with amount:", order_amount, "payment_id:", payment_id);
 
-    let purchase;
-    try {
-      purchase = await prisma.payment.findUnique({
-	
-        where: { id: order_id },
-        include: { course: true },
-      });
-    } catch (dbError) {
-      console.error("Database error finding purchase:", dbError);
-      return res.status(500).json({ message: "Database error processing webhook", error: dbError.message });
-    }
+    const purchase = await prisma.payment.findUnique({
+      where: { id: order_id },
+      include: { course: true },
+    });
 
     if (!purchase) {
       console.warn("Purchase not found for order_id:", order_id);
@@ -157,16 +142,12 @@ exports.cashfreeWebhook = async (req, res) => {
 
       const updatedUser = await tx.user.update({
         where: { id: purchase.userId },
-        data: {
-          enrolledCourses: { connect: { id: purchase.courseId } },
-        },
+        data: { enrolledCourses: { connect: { id: purchase.courseId } } },
       });
 
       const updatedCourse = await tx.course.update({
         where: { id: purchase.courseId },
-        data: {
-          enrollStudent: { connect: { id: purchase.userId } },
-        },
+        data: { enrollStudent: { connect: { id: purchase.userId } } },
       });
 
       console.log("Database updated - Payment:", updatedPurchase);
@@ -194,11 +175,7 @@ exports.checkPurchaseStatus = async (req, res) => {
     }
 
     const purchase = await prisma.payment.findFirst({
-      where: {
-        userId: userId,
-        courseId: courseId,
-        status: "Completed",
-      },
+      where: { userId, courseId, status: "Completed" },
     });
 
     res.status(200).json({ isPurchased: !!purchase });
