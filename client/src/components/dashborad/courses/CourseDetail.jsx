@@ -15,53 +15,51 @@ const CourseDetail = () => {
   const [cashfree, setCashfree] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [isPurchased, setIsPurchased] = useState(false);
-  const [error, setError] = useState(null);
+  const [isCheckingPurchase, setIsCheckingPurchase] = useState(true);
+  const [error, setError] = useState(null); // Added error state
 
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: courseDetail, isLoading, isSuccess } = useGetCourseDetailByIdQuery(id);
 
+  // Initialize Cashfree SDK
   useEffect(() => {
-    let mounted = true;
     const initializeSDK = async () => {
       try {
-        const sdk = await load({ mode: "production" }); // Change to production
-        if (mounted) setCashfree(sdk);
+        const sdk = await load({ mode: "production" }); // Changed to production
+        setCashfree(sdk);
+        console.log("✅ Cashfree SDK initialized");
       } catch (error) {
-        console.error("Failed to initialize Cashfree SDK:", error);
-        if (mounted) setError("Payment system initialization failed");
+        console.error("❌ Failed to initialize Cashfree SDK:", error);
+        setError("Payment system initialization failed");
       }
     };
     initializeSDK();
-    return () => { mounted = false; };
   }, []);
 
+  // Check if the course is already purchased
   useEffect(() => {
-    let mounted = true;
     const checkPurchaseStatus = async () => {
       try {
         const response = await axios.get(`https://vidhayala-ai-18.onrender.com/payment/status/${id}`, {
           withCredentials: true,
         });
-        if (mounted && response.data.success && response.data.isPurchased) {
+        if (response.data.isPurchased) {
           setIsPurchased(true);
           navigate(`/course-progress/${id}`);
         }
       } catch (error) {
         console.error("Error checking purchase status:", error);
-        if (mounted) setError("Failed to verify purchase status");
+        setError("Failed to check purchase status");
+      } finally {
+        setIsCheckingPurchase(false);
       }
     };
     checkPurchaseStatus();
-    return () => { mounted = false; };
   }, [id, navigate]);
 
   const handlePayment = async (e) => {
     e.preventDefault();
-    if (!cashfree) {
-      setError("Payment system not ready");
-      return;
-    }
     setIsProcessing(true);
     setError(null);
 
@@ -74,26 +72,54 @@ const CourseDetail = () => {
 
       if (response.data.success && response.data.sessionId) {
         setOrderId(response.data.orderId);
-        await cashfree.checkout({
+
+        const checkoutOptions = {
           paymentSessionId: response.data.sessionId,
           redirectTarget: "_modal",
-        });
-        setPaymentSuccess(true);
-        setTimeout(() => navigate(`/course-progress/${id}`), 3000);
+        };
+
+        if (cashfree) {
+          cashfree
+            .checkout(checkoutOptions)
+            .then((result) => {
+              console.log("Payment result:", result);
+              setPaymentSuccess(true);
+              setTimeout(() => {
+                navigate(`/course-progress/${id}`);
+              }, 3000);
+            })
+            .catch((error) => {
+              console.error("Payment error:", error);
+              setError("Payment failed. Please try again.");
+            });
+        } else {
+          console.error("Cashfree SDK not initialized");
+          setError("Payment system not ready. Please try again.");
+        }
       } else {
-        throw new Error("Payment initiation failed");
+        console.error("Payment initiation failed", response.data);
+        setError("Payment initiation failed. Please try again.");
       }
     } catch (error) {
-      console.error("Payment error:", error);
-      setError(error.response?.data?.message || "Payment failed");
+      console.error("Error initiating payment:", error);
+      setError(error.response?.data?.message || "An error occurred while processing the payment.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (isLoading) return <Loadering />;
+  // Loading state
+  if (isLoading || isCheckingPurchase) {
+    return <Loadering />;
+  }
+
+  // If course not found
   if (!isSuccess || !courseDetail?.courses) {
-    return <div className="min-h-screen flex justify-center items-center text-white">Course not found</div>;
+    return (
+      <div className="min-h-screen flex justify-center items-center text-white">
+        Course not found.
+      </div>
+    );
   }
 
   const course = courseDetail.courses;
@@ -106,7 +132,7 @@ const CourseDetail = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg text-center">
             <h2 className="text-2xl font-bold text-green-600">Payment Successful!</h2>
             <p className="text-gray-700 mt-2">Congratulations! You've enrolled in the course.</p>
-            <p className="text-gray-500 mt-2">Redirecting...</p>
+            <p className="text-gray-500 mt-2">Redirecting to course progress...</p>
           </div>
         </div>
       )}
@@ -136,17 +162,17 @@ const CourseDetail = () => {
             </div>
             <div className="mt-6 flex items-center gap-4">
               <span className="text-red-400 line-through text-lg font-medium">₹{course.coursePrice}</span>
-              <span className="text-white text-2xl font-extrabold">₹{course.discountedPrice || course.coursePrice}</span>
+              <span className="text-white text-2xl font-extrabold">₹{course.discountedPrice || 120}</span>
             </div>
             <motion.button
               onClick={handlePayment}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="mt-6 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-full flex items-center gap-2 text-white font-semibold shadow-md transition-all"
-              disabled={isProcessing || isPurchased}
+              disabled={isProcessing}
             >
               <MdOutlinePayment size={20} />
-              {isProcessing ? "Processing..." : "Enroll Now"}
+              {isProcessing ? "Processing..." : "Proceed to Payment"}
             </motion.button>
           </div>
         </div>
