@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://api.cashfree.com/pg/orders"; // Corrected endpoint for production
+const CASHFREE_API_BASE = "https://api.cashfree.com/pg/orders"; // Production endpoint
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
@@ -14,7 +14,7 @@ const CASHFREE_HEADERS = {
   "x-api-version": "2023-08-01",
 };
 
-// Ensure environment variables exist
+// Ensure environment variables exist at startup
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET_KEY) {
   console.error("❌ Missing Cashfree API credentials. Check .env file.");
   process.exit(1);
@@ -34,6 +34,15 @@ exports.createCheckoutSession = async (req, res) => {
 
     if (!course.coursePrice || course.coursePrice <= 0) {
       return res.status(400).json({ success: false, message: "Invalid course price" });
+    }
+
+    // Runtime check for credentials
+    if (!CASHFREE_HEADERS["x-client-id"] || !CASHFREE_HEADERS["x-client-secret"]) {
+      console.error("❌ Cashfree credentials not loaded at runtime");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error: Missing payment credentials",
+      });
     }
 
     const orderId = `order_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
@@ -67,7 +76,11 @@ exports.createCheckoutSession = async (req, res) => {
     console.log("✅ Sending Order Payload to Cashfree:", {
       url: CASHFREE_API_BASE,
       payload: orderPayload,
-      headers: CASHFREE_HEADERS,
+      headers: {
+        ...CASHFREE_HEADERS,
+        "x-client-id": "****", // Masked for logs
+        "x-client-secret": "****", // Masked for logs
+      },
     });
 
     const { data } = await axios.post(CASHFREE_API_BASE, orderPayload, { headers: CASHFREE_HEADERS });
@@ -91,12 +104,12 @@ exports.createCheckoutSession = async (req, res) => {
   } catch (error) {
     console.error("❌ Payment Error:", {
       message: error.message,
-      response: error.response?.data,
       status: error.response?.status,
+      response: error.response?.data,
     });
     return res.status(500).json({
       success: false,
-      message: "Payment initiation failed in production. Please try again.",
+      message: "Payment initiation failed",
       error: error.message,
       details: error.response?.data,
     });
@@ -122,6 +135,7 @@ exports.cashfreeWebhook = async (req, res) => {
     let purchase;
     try {
       purchase = await prisma.payment.findUnique({
+	
         where: { id: order_id },
         include: { course: true },
       });

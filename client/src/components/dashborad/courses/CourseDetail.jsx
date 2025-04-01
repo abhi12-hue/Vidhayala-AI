@@ -16,17 +16,16 @@ const CourseDetail = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [isPurchased, setIsPurchased] = useState(false);
   const [isCheckingPurchase, setIsCheckingPurchase] = useState(true);
-  const [error, setError] = useState(null); // Added error state
+  const [error, setError] = useState(null);
 
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: courseDetail, isLoading, isSuccess } = useGetCourseDetailByIdQuery(id);
 
-  // Initialize Cashfree SDK
   useEffect(() => {
     const initializeSDK = async () => {
       try {
-        const sdk = await load({ mode: "production" }); // Changed to production
+        const sdk = await load({ mode: "production" });
         setCashfree(sdk);
         console.log("✅ Cashfree SDK initialized");
       } catch (error) {
@@ -37,7 +36,6 @@ const CourseDetail = () => {
     initializeSDK();
   }, []);
 
-  // Check if the course is already purchased
   useEffect(() => {
     const checkPurchaseStatus = async () => {
       try {
@@ -72,7 +70,6 @@ const CourseDetail = () => {
 
       if (response.data.success && response.data.sessionId) {
         setOrderId(response.data.orderId);
-
         const checkoutOptions = {
           paymentSessionId: response.data.sessionId,
           redirectTarget: "_modal",
@@ -84,9 +81,7 @@ const CourseDetail = () => {
             .then((result) => {
               console.log("Payment result:", result);
               setPaymentSuccess(true);
-              setTimeout(() => {
-                navigate(`/course-progress/${id}`);
-              }, 3000);
+              setTimeout(() => navigate(`/course-progress/${id}`), 3000);
             })
             .catch((error) => {
               console.error("Payment error:", error);
@@ -97,8 +92,7 @@ const CourseDetail = () => {
           setError("Payment system not ready. Please try again.");
         }
       } else {
-        console.error("Payment initiation failed", response.data);
-        setError("Payment initiation failed. Please try again.");
+        throw new Error(response.data.message || "Payment initiation failed");
       }
     } catch (error) {
       console.error("Error initiating payment:", error);
@@ -108,12 +102,10 @@ const CourseDetail = () => {
     }
   };
 
-  // Loading state
   if (isLoading || isCheckingPurchase) {
     return <Loadering />;
   }
 
-  // If course not found
   if (!isSuccess || !courseDetail?.courses) {
     return (
       <div className="min-h-screen flex justify-center items-center text-white">
