@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import FAQSection from "../Courses/Fqs";
 import { useGetCourseQuery } from "@/features/api/courseApi";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 // Tech Stack Icons
 const techIcons = [
@@ -123,9 +124,11 @@ const Home = () => {
 
       {/* CTA Buttons */}
       <div className="flex flex-col items-center mt-10 space-y-6">
+        <Link to="/ai">
         <Button variant="outline" className="border-dotted border-[#7718C9]">
           Check Out Vidhayala AI
         </Button>
+        </Link>
 
         {/* Introduction Section */}
         <div className="mt-10 text-center px-4">
@@ -138,11 +141,14 @@ const Home = () => {
           </p>
         </div>
 
+        <Link to="/explore-course">
         <Button className="h-14 sm:h-16 bg-gradient-to-r from-blue-700 to-blue-900 
           text-white px-8 sm:px-10 py-4 sm:py-5 text-lg sm:text-xl md:text-2xl rounded-full 
           flex items-center gap-3 transition hover:from-blue-800 hover:to-black mt-12">
           CheckOut Courses <ArrowLeftRight size={24} />
         </Button>
+        </Link>
+    
       </div>
 
       {/* Community Section */}
