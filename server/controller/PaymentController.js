@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://api.cashfree.com/pg/orders"; // Production endpoint
+const CASHFREE_API_BASE = "https://sandbox.cashfree.com/pg/orders"; // Production endpoint
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
