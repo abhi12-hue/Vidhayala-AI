@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-const CASHFREE_API_BASE = "https://api.cashfree.com/pg";// Change to production when deploying
+const CASHFREE_API_BASE = "https://api.cashfree.com/pg"; // Production endpoint
 
 const CASHFREE_HEADERS = {
   "Content-Type": "application/json",
@@ -38,7 +38,7 @@ exports.createCheckoutSession = async (req, res) => {
 
     const orderId = randomUUID().replace(/-/g, "").slice(0, 12);
 
-    const newPurchase = await prisma.payment.create({
+    await prisma.payment.create({
       data: {
         id: orderId,
         courseId,
@@ -64,14 +64,12 @@ exports.createCheckoutSession = async (req, res) => {
       },
     };
 
-    console.log("✅ Sending Order Payload:", orderPayload);
+    console.log("✅ Sending Order Payload to Production:", orderPayload);
 
     const { data } = await axios.post(CASHFREE_API_BASE, orderPayload, { headers: CASHFREE_HEADERS });
 
-    console.log("✅ Cashfree Response:", data);
-
     if (!data.payment_session_id) {
-      console.error("❌ Missing Payment Session ID in Response:", data);
+      console.error("❌ Missing Payment Session ID in Production Response:", data);
       return res.status(500).json({ message: "Failed to get payment session ID", details: data });
     }
 
@@ -81,72 +79,82 @@ exports.createCheckoutSession = async (req, res) => {
       orderId: orderId,
     });
   } catch (error) {
-    console.error("❌ Payment error:", error?.response?.data || error.message);
-    res.status(500).json({ message: "Payment initiation failed. Please try again." });
+    console.error("❌ Payment error in Production:", error?.response?.data || error.message);
+    res.status(500).json({ message: "Payment initiation failed in production. Please try again.", error: error.message });
   }
 };
 
 exports.cashfreeWebhook = async (req, res) => {
-  console.log("Webhook triggered - Raw body:", req.body); // Log raw input
+  console.log("Webhook triggered in Production - Raw body:", JSON.stringify(req.body, null, 2));
 
   try {
     const event = req.body;
 
     if (!event || event.event !== "PAYMENT_SUCCESS") {
-      console.log("Invalid event received:", event);
+      console.log("Invalid event received in Production:", JSON.stringify(event, null, 2));
       return res.status(400).send("Invalid event");
     }
 
-    const { order_id, order_amount } = event.data;
-    console.log("Processing order_id:", order_id, "with amount:", order_amount);
+    const { order_id, order_amount, payment_id } = event.data;
+    console.log("Processing order_id in Production:", order_id, "with amount:", order_amount, "payment_id:", payment_id);
 
-    const purchase = await prisma.payment.findUnique({
-      where: { id: order_id },
-      include: { course: true },
-    });
-    console.log("Found purchase:", purchase);
+    let purchase;
+    try {
+      purchase = await prisma.payment.findUnique({
+        where: { id: order_id },
+        include: { course: true },
+      });
+    } catch (dbError) {
+      console.error("Database error finding purchase in Production:", dbError);
+      return res.status(500).json({ message: "Database error processing webhook", error: dbError.message });
+    }
 
     if (!purchase) {
-      console.warn("Purchase not found for order_id:", order_id);
+      console.warn("Purchase not found for order_id in Production:", order_id);
       return res.status(404).json({ message: "Purchase not found" });
     }
 
-    const updatedPurchase = await prisma.payment.update({
-      where: { id: order_id },
-      data: { status: "Completed", amount: parseInt(order_amount, 10) },
-    });
-    console.log("Payment updated to Completed:", updatedPurchase);
+    await prisma.$transaction(async (tx) => {
+      const updatedPurchase = await tx.payment.update({
+        where: { id: order_id },
+        data: { status: "Completed", amount: parseInt(order_amount, 10), paymentId: payment_id },
+      });
 
-    const updatedUser = await prisma.user.update({
-      where: { id: purchase.userId },
-      data: {
-        enrolledCourses: { connect: { id: purchase.courseId } },
-      },
-      include: { enrolledCourses: true },
-    });
-    console.log("User enrolled in course:", updatedUser);
+      const updatedUser = await tx.user.update({
+        where: { id: purchase.userId },
+        data: {
+          enrolledCourses: { connect: { id: purchase.courseId } },
+        },
+      });
 
-    const updatedCourse = await prisma.course.update({
-      where: { id: purchase.courseId },
-      data: {
-        enrollStudent: { connect: { id: purchase.userId } },
-      },
-      include: { enrollStudent: true },
-    });
-    console.log("Course enrollment updated:", updatedCourse);
+      const updatedCourse = await tx.course.update({
+        where: { id: purchase.courseId },
+        data: {
+          enrollStudent: { connect: { id: purchase.userId } },
+        },
+      });
 
-    console.log("✅ Payment successfully processed:", event);
+      console.log("Database updated in Production - Payment:", updatedPurchase);
+      console.log("Database updated in Production - User:", updatedUser);
+      console.log("Database updated in Production - Course:", updatedCourse);
+    });
+
+    console.log("✅ Payment successfully processed in Production:", JSON.stringify(event, null, 2));
     res.status(200).send("Webhook received");
   } catch (error) {
-    console.error("❌ Webhook processing error:", error.stack || error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("❌ Webhook processing error in Production:", error.stack || error.message);
+    res.status(500).json({ message: "Internal Server Error in Production", error: error.message });
   }
 };
 
 exports.checkPurchaseStatus = async (req, res) => {
   try {
-    const userId = req.id || "test-user-id"; // Fallback for testing
+    const userId = req.id || "test-user-id";
     const courseId = Number(req.params.courseId);
+
+    if (!userId || !courseId) {
+      return res.status(400).json({ message: "Invalid user or course ID" });
+    }
 
     const purchase = await prisma.payment.findFirst({
       where: {
@@ -158,7 +166,7 @@ exports.checkPurchaseStatus = async (req, res) => {
 
     res.status(200).json({ isPurchased: !!purchase });
   } catch (error) {
-    console.error("Error checking purchase status:", error);
-    res.status(500).json({ message: "Failed to check purchase status" });
+    console.error("Error checking purchase status in Production:", error);
+    res.status(500).json({ message: "Failed to check purchase status in production", error: error.message });
   }
 };
