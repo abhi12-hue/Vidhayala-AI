@@ -116,7 +116,7 @@ useEffect(()=>{
           {menuOpen && (
             <div className="absolute top-16 right-0 bg-black border border-white rounded-md shadow-md w-48 p-2 overflow-hidden">
               <Link to="/about" className="block text-white hover:bg-gray-800 p-2 rounded-md">About</Link>
-              <Link  to="/explore-course"  className="block text-white hover:bg-purple-500 p-2 rounded-md transition duration-300">Courses</Link>
+          
               {data ? (
                 <>
                   <Link 
