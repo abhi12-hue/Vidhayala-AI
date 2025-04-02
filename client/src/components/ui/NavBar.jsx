@@ -158,7 +158,7 @@ useEffect(()=>{
                 </>
               ) : (
                 <>
-                  <Link to="/signin" className="block text-white hover:bg-gray-800 p-2 rounded-md">Sign In</Link>
+                  <Link to="/login" className="block text-white hover:bg-gray-800 p-2 rounded-md">Sign In</Link>
                   <Link to="/login" className="block text-white hover:bg-gray-800 p-2 rounded-md mt-2">Login</Link>
                 </>
               )}
